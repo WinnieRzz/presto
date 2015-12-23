@@ -23,6 +23,7 @@ import com.facebook.presto.sql.tree.ArithmeticBinaryExpression;
 import com.facebook.presto.sql.tree.ArithmeticUnaryExpression;
 import com.facebook.presto.sql.tree.ArrayConstructor;
 import com.facebook.presto.sql.tree.BetweenPredicate;
+import com.facebook.presto.sql.tree.BinaryLiteral;
 import com.facebook.presto.sql.tree.BooleanLiteral;
 import com.facebook.presto.sql.tree.Cast;
 import com.facebook.presto.sql.tree.CoalesceExpression;
@@ -885,6 +886,7 @@ class AstBuilder
         return new FunctionCall(getLocation(context), new QualifiedName("strpos"), arguments);
     }
 
+    @Override
     public Node visitNormalize(SqlBaseParser.NormalizeContext context)
     {
         Expression str = (Expression) visit(context.valueExpression());
@@ -966,7 +968,7 @@ class AstBuilder
                     (Expression) visit(context.expression(1)),
                     elseExpression);
         }
-        else if (name.toString().equalsIgnoreCase("nullif")) {
+        if (name.toString().equalsIgnoreCase("nullif")) {
             check(context.expression().size() == 2, "Invalid number of arguments for 'nullif' function", context);
             check(!window.isPresent(), "OVER clause not valid for 'nullif' function", context);
             check(!distinct, "DISTINCT not valid for 'nullif' function", context);
@@ -976,7 +978,7 @@ class AstBuilder
                     (Expression) visit(context.expression(0)),
                     (Expression) visit(context.expression(1)));
         }
-        else if (name.toString().equalsIgnoreCase("coalesce")) {
+        if (name.toString().equalsIgnoreCase("coalesce")) {
             check(!window.isPresent(), "OVER clause not valid for 'coalesce' function", context);
             check(!distinct, "DISTINCT not valid for 'coalesce' function", context);
 
@@ -1076,6 +1078,13 @@ class AstBuilder
     }
 
     @Override
+    public Node visitBinaryLiteral(SqlBaseParser.BinaryLiteralContext context)
+    {
+        String raw = context.BINARY_LITERAL().getText();
+        return new BinaryLiteral(getLocation(context), unquote(raw.substring(1)));
+    }
+
+    @Override
     public Node visitTypeConstructor(SqlBaseParser.TypeConstructorContext context)
     {
         String type = context.identifier().getText();
@@ -1084,7 +1093,7 @@ class AstBuilder
         if (type.equalsIgnoreCase("time")) {
             return new TimeLiteral(getLocation(context), value);
         }
-        else if (type.equalsIgnoreCase("timestamp")) {
+        if (type.equalsIgnoreCase("timestamp")) {
             return new TimestampLiteral(getLocation(context), value);
         }
 
@@ -1162,9 +1171,9 @@ class AstBuilder
                 .collect(toList());
     }
 
-    private static String unquote(String string)
+    private static String unquote(String value)
     {
-        return string.substring(1, string.length() - 1)
+        return value.substring(1, value.length() - 1)
                 .replace("''", "'");
     }
 
